@@ -141,7 +141,7 @@ function parseImageName() {
     # - tag
     # If a group is missing it will be an empty string
     if [[ "x$TAGONLY" == "x" ]]; then
-       imageRegex="^([a-zA-Z0-9\.\-]+):?([0-9]+)?/([a-zA-Z0-9\._\-]+)(/[\/a-zA-Z0-9\._\-]+)?:?([a-zA-Z0-9\._\-]+)?$"
+       imageRegex="^([a-zA-Z0-9\.\-]+):?([0-9]+)?/([a-zA-Z0-9\._\-]+)(/[\/a-zA-Z0-9\._\-]+)?[:@]?([a-zA-Z0-9:\._\-]+)?$"
     else
        imageRegex="^:?([a-zA-Z0-9\._-]+)?$"
     fi
@@ -224,7 +224,13 @@ function parseImageName() {
       fi
       imageWithoutTag="$useImage"
       if [[ ! -z ${tag+undefined-guard} ]]; then
-        useImage="$useImage:$tag"
+        digestRegex="^sha256:([a-zA-Z0-9:\._\-]+)?$"
+
+        if [[ $tag =~ $digestRegex ]]; then
+          useImage="$useImage@$tag"
+        else
+          useImage="$useImage:$tag"
+        fi
       fi
 
     else
@@ -274,7 +280,7 @@ function createNewTaskDefJson() {
     done
 
     # Build new DEF with jq filter
-    NEW_DEF=$(echo $DEF | jq "{${NEW_DEF_JQ_FILTER}}")
+    NEW_DEF=$(echo $DEF | jq "{${NEW_DEF_JQ_FILTER}}" | jq "(.containerDefinitions[].image)=\"${useImage}\"" )
 
     # If in test mode output $NEW_DEF
     if [ "$BASH_SOURCE" != "$0" ]; then
